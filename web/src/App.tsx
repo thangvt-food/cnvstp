@@ -77,7 +77,7 @@ export default function App() {
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight sm:text-xl">Đếm tế bào nấm men</h1>
             <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-              Buồng đếm hồng cầu Neubauer · 5 ô × 16 ô nhỏ · biểu đồ log₁₀
+              Buồng đếm hồng cầu Neubauer · 5 ô × 16 ô nhỏ · biểu đồ log₁₀ / CFU/mL
             </p>
           </div>
           <div className="inline-flex items-center gap-2 text-xs text-slate-500">
