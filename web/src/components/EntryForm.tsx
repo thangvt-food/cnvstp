@@ -157,7 +157,7 @@ export default function EntryForm({ saving, editing, onSave, onCancelEdit }: Pro
       </div>
 
       <div>
-        <label className={LABEL}>Số tế bào đếm được — từng ô lớn (mỗi ô gồm 16 ô nhỏ)</label>
+        <label className={LABEL}>Số tế bào đếm được — từng ô (mỗi ô gồm 16 ô nhỏ)</label>
         <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
           {[0, 1, 2, 3, 4].map(i => (
             <div key={i}>
@@ -202,7 +202,7 @@ export default function EntryForm({ saving, editing, onSave, onCancelEdit }: Pro
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat label="Σ tế bào (5 ô)" value={fmtInt(result.total)} />
-        <Stat label="TB mỗi ô lớn" value={trimZeros(result.avg.toFixed(1))} />
+        <Stat label="TB mỗi ô" value={trimZeros(result.avg.toFixed(1))} />
         <Stat label="Nồng độ N (TB/mL)" value={fmtSci(result.concentration)} accent />
         <Stat label="log₁₀(N)" value={result.log10 === null ? '—' : result.log10.toFixed(2)} />
       </div>

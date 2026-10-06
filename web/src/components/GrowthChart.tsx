@@ -39,11 +39,14 @@ export default function GrowthChart({ items }: { items: Measurement[] }) {
   const chart = useMemo(() => {
     if (items.length === 0) return null
     const t0 = Math.min(...items.map(m => parseLocal(m.time)))
-    const data: ChartDatum[] = items.map(m => ({
-      hours: (parseLocal(m.time) - t0) / 3600000,
-      conc: m.concentration > 0 ? m.concentration : null,
-      m,
-    }))
+    const data: ChartDatum[] = items.map(m => {
+      const conc = computeResult(m.counts, m.dilutionExp).concentration
+      return {
+        hours: (parseLocal(m.time) - t0) / 3600000,
+        conc: conc > 0 ? conc : null,
+        m,
+      }
+    })
     const concs = data.map(d => d.conc).filter((c): c is number => c !== null)
     if (concs.length === 0) return { data, domain: null, ticks: [] as number[] }
     const lo = Math.min(...concs)

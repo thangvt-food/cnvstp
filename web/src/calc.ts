@@ -1,22 +1,32 @@
 export const SQUARES = 5
+export const SMALL_SQUARES_PER_SQUARE = 16
+/** Tổng số ô nhỏ đã đếm: 5 ô × 16 ô nhỏ = 80 */
+export const SMALL_SQUARES_TOTAL = SQUARES * SMALL_SQUARES_PER_SQUARE
 
-/** 1 ô lớn Neubauer: 1 mm² × 0,1 mm = 0,1 µL = 10⁻⁴ mL */
-export const VOLUME_FACTOR = 1e4
+/**
+ * Hệ số buồng đếm Neubauer (sâu 0,1 mm): ô nhỏ 0,05 × 0,05 mm có thể tích
+ * 2,5×10⁻⁴ µL → 1 / 2,5×10⁻⁴ = 4000 tế bào/µL cho mỗi tế bào đếm trên 1 ô nhỏ,
+ * nhân 1000 để đổi µL → mL.
+ */
+export const CHAMBER_FACTOR = 4000 * 1000
 
 export interface Result {
   total: number
+  /** Trung bình tế bào mỗi ô đếm */
   avg: number
+  /** Nồng độ tế bào (tế bào/mL) */
   concentration: number
   log10: number | null
 }
 
 /**
- * N (tế bào/mL) = (Σ tế bào 5 ô lớn ÷ 5) × 10⁴ × hệ số pha loãng
+ * N (tế bào/mL) = (Σ tế bào ÷ tổng số ô nhỏ) × 4000 × 1000 × hệ số pha loãng
+ * với tổng số ô nhỏ = 5 ô × 16 ô nhỏ = 80.
  */
 export function computeResult(counts: number[], dilutionExp: number): Result {
   const total = counts.reduce((s, c) => s + (c || 0), 0)
   const avg = total / SQUARES
-  const concentration = avg * VOLUME_FACTOR * Math.pow(10, dilutionExp)
+  const concentration = (total / SMALL_SQUARES_TOTAL) * CHAMBER_FACTOR * Math.pow(10, dilutionExp)
   return {
     total,
     avg,

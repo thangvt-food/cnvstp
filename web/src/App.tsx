@@ -77,7 +77,7 @@ export default function App() {
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight sm:text-xl">Đếm tế bào nấm men</h1>
             <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-              Buồng đếm hồng cầu Neubauer · 5 ô lớn × 16 ô nhỏ · biểu đồ log₁₀
+              Buồng đếm hồng cầu Neubauer · 5 ô × 16 ô nhỏ · biểu đồ log₁₀
             </p>
           </div>
           <div className="inline-flex items-center gap-2 text-xs text-slate-500">
@@ -133,11 +133,12 @@ export default function App() {
           <p className="my-1">
             Công thức:{' '}
             <span className="font-mono">
-              N (tế bào/mL) = (Σ tế bào 5 ô lớn ÷ 5) × 10⁴ × hệ số pha loãng
+              N (tế bào/mL) = (Σ tế bào ÷ 80 ô nhỏ) × 4000 × 1000 × hệ số pha loãng
             </span>
           </p>
           <p className="my-1">
-            Buồng đếm Neubauer: ô lớn 1 mm², độ sâu buồng 0,1 mm → thể tích 1 ô lớn = 0,1 µL = 10⁻⁴ mL.
+            Buồng đếm Neubauer sâu 0,1 mm: 5 ô đếm, mỗi ô 16 ô nhỏ 0,05 × 0,05 mm → 80 ô nhỏ; thể tích 1 ô
+            nhỏ = 2,5×10⁻⁴ µL.
           </p>
         </footer>
       </div>
