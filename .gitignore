@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Tài liệu thực tập (không đưa lên repo web — bỏ comment nếu muốn đưa lên)
+*.pdf
+*.docx
+*.pptx
+/get/
+/slide/
+/merge_slides_to_pptx.*
+/Bao_Cao_*.md
+/Danh_Gia_*.md
+/SUON_*.md
+/THỰC*.md
+
+# package.json gốc dùng cho script slide (pptxgenjs), không liên quan app web
+/package.json
+/package-lock.json
+
+# Command Code internals
+.commandcode/
