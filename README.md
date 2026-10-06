@@ -6,7 +6,6 @@ Web app ghi số liệu đếm tế bào nấm men bằng **buồng đếm hồn
 - Kết quả: `N (tế bào/mL) = (Σ tế bào 5 ô ÷ 5) × 10⁴ × hệ số pha loãng` (ô lớn 1 mm², độ sâu buồng 0,1 mm → 10⁻⁴ mL/ô).
 - Biểu đồ: trục Y log₁₀ nồng độ, trục X giờ kể từ lần đo đầu (tự tính từ thời gian nhập).
 - Nhật ký số liệu: sửa / xóa từng lần đo, xuất CSV.
-- Lưu dữ liệu: Firebase Realtime Database (REST, không auth — project nội bộ).
 - Giao diện mobile-first, phong cách khoa học tối giản.
 
 ## Cấu trúc
@@ -36,16 +35,3 @@ npm run dev
 
 2. Trên GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Workflow tự chạy khi push. Trang web tại: **https://thangvt-food.github.io/cnvstp/**
-
-## Firebase Realtime Database
-
-App ghi trực tiếp vào `https://ant05-efa02-default-rtdb.firebaseio.com/` tại node `measurements/{id}`, không cần auth. Nếu bị chặn, kiểm tra Rules trong Firebase Console đặt chế độ cho phép đọc/ghi (project nội bộ):
-
-```json
-{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}
-```
