@@ -6,6 +6,12 @@ const DRAFT_KEY = 'cnvstp-draft-v1'
 const DILUTION_MAX = 7
 const EMPTY = ['', '', '', '', '']
 
+const INPUT =
+  'w-full min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30'
+const LABEL = 'mb-1.5 block text-xs font-semibold text-slate-600'
+const BTN = 'inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold'
+const BTN_GHOST = `${BTN} border border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100`
+
 interface Draft {
   time: string
   counts: string[]
@@ -36,6 +42,25 @@ interface Props {
   editing: Measurement | null
   onSave: (input: MeasurementInput) => Promise<void>
   onCancelEdit: () => void
+}
+
+function Stat({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div
+      className={`min-w-0 rounded-lg border p-2 ${
+        accent ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-slate-50'
+      }`}
+    >
+      <span className="block text-[11px] text-slate-500">{label}</span>
+      <span
+        className={`block truncate font-mono text-base font-semibold tabular-nums ${
+          accent ? 'text-blue-700' : 'text-slate-900'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  )
 }
 
 export default function EntryForm({ saving, editing, onSave, onCancelEdit }: Props) {
@@ -106,44 +131,66 @@ export default function EntryForm({ saving, editing, onSave, onCancelEdit }: Pro
 
   return (
     <form
+      className="space-y-3.5"
       onSubmit={e => {
         e.preventDefault()
         void handleSubmit()
       }}
     >
-      <div className="field">
-        <label htmlFor="time">Thời gian đo</label>
-        <div className="time-row">
-          <input id="time" type="datetime-local" value={time} onChange={e => setTime(e.target.value)} required />
-          <button type="button" className="btn ghost" onClick={() => setTime(nowLocal())}>
+      <div>
+        <label htmlFor="time" className={LABEL}>
+          Thời gian đo
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="time"
+            type="datetime-local"
+            value={time}
+            onChange={e => setTime(e.target.value)}
+            required
+            className={`${INPUT} min-w-0 flex-1`}
+          />
+          <button type="button" onClick={() => setTime(nowLocal())} className={`${BTN_GHOST} shrink-0`}>
             Bây giờ
           </button>
         </div>
       </div>
 
-      <div className="field">
-        <label>Số tế bào đếm được — từng ô lớn (mỗi ô gồm 16 ô nhỏ)</label>
-        <div className="counts-grid">
+      <div>
+        <label className={LABEL}>Số tế bào đếm được — từng ô lớn (mỗi ô gồm 16 ô nhỏ)</label>
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
           {[0, 1, 2, 3, 4].map(i => (
-            <input
-              key={i}
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              placeholder="0"
-              aria-label={`Ô lớn ${i + 1}`}
-              value={counts[i]}
-              onChange={e => setCount(i, e.target.value)}
-            />
+            <div key={i}>
+              <span className="mb-1 block text-center text-[10px] font-semibold tracking-wide text-slate-500">
+                Ô {i + 1}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                placeholder="0"
+                aria-label={`Ô lớn ${i + 1}`}
+                value={counts[i]}
+                onChange={e => setCount(i, e.target.value)}
+                className="h-14 w-full rounded-lg border border-slate-200 bg-white px-1 text-center font-mono text-lg font-semibold text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30"
+              />
+            </div>
           ))}
         </div>
-        <p className="counts-help">Nhập số tế bào của Ô 1 → Ô 5. Trung bình mỗi ô = Σ ÷ 5.</p>
+        <p className="mt-1.5 text-[11px] text-slate-500">Nhập số tế bào của Ô 1 → Ô 5. Trung bình mỗi ô = Σ ÷ 5.</p>
       </div>
 
-      <div className="field">
-        <label htmlFor="dilution">Hệ số pha loãng</label>
-        <select id="dilution" value={dilutionExp} onChange={e => setDilutionExp(Number(e.target.value))}>
+      <div>
+        <label htmlFor="dilution" className={LABEL}>
+          Hệ số pha loãng
+        </label>
+        <select
+          id="dilution"
+          value={dilutionExp}
+          onChange={e => setDilutionExp(Number(e.target.value))}
+          className={INPUT}
+        >
           {Array.from({ length: DILUTION_MAX + 1 }, (_, n) => (
             <option key={n} value={n}>
               10{sup(n)}
@@ -153,35 +200,27 @@ export default function EntryForm({ saving, editing, onSave, onCancelEdit }: Pro
         </select>
       </div>
 
-      <div className="result-grid">
-        <div className="result-cell">
-          <span className="res-label">Σ tế bào (5 ô)</span>
-          <span className="res-value">{fmtInt(result.total)}</span>
-        </div>
-        <div className="result-cell">
-          <span className="res-label">TB mỗi ô lớn</span>
-          <span className="res-value">{trimZeros(result.avg.toFixed(1))}</span>
-        </div>
-        <div className="result-cell">
-          <span className="res-label">Nồng độ N (TB/mL)</span>
-          <span className="res-value">{fmtSci(result.concentration)}</span>
-        </div>
-        <div className="result-cell">
-          <span className="res-label">log₁₀(N)</span>
-          <span className="res-value">{result.log10 === null ? '—' : result.log10.toFixed(2)}</span>
-        </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Stat label="Σ tế bào (5 ô)" value={fmtInt(result.total)} />
+        <Stat label="TB mỗi ô lớn" value={trimZeros(result.avg.toFixed(1))} />
+        <Stat label="Nồng độ N (TB/mL)" value={fmtSci(result.concentration)} accent />
+        <Stat label="log₁₀(N)" value={result.log10 === null ? '—' : result.log10.toFixed(2)} />
       </div>
 
-      <div className="form-actions">
-        <button type="submit" className="btn primary" disabled={!valid || saving}>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="submit"
+          disabled={!valid || saving}
+          className={`${BTN} w-full bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-40`}
+        >
           {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Lưu số liệu'}
         </button>
         {editing && (
-          <button type="button" className="btn ghost" onClick={onCancelEdit}>
+          <button type="button" onClick={onCancelEdit} className={BTN_GHOST}>
             Hủy sửa
           </button>
         )}
-        {savedMsg && <span className="saved-msg">{savedMsg}</span>}
+        {savedMsg && <span className="text-sm font-semibold text-green-700">{savedMsg}</span>}
       </div>
     </form>
   )

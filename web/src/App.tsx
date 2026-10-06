@@ -6,6 +6,8 @@ import EntryForm from './components/EntryForm'
 import GrowthChart from './components/GrowthChart'
 import DataTable from './components/DataTable'
 
+const CARD = 'rounded-xl border border-slate-200 bg-white p-4'
+
 export default function App() {
   const [items, setItems] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,50 +71,76 @@ export default function App() {
   }
 
   return (
-    <div className="page">
-      <header className="app-header">
-        <div>
-          <h1>Đếm tế bào nấm men</h1>
-          <p className="subtitle">Buồng đếm hồng cầu Neubauer · 5 ô lớn × 16 ô nhỏ · biểu đồ log₁₀</p>
-        </div>
-        <div className={`status ${dbOk === null ? 'checking' : dbOk ? 'ok' : 'err'}`}>
-          <span className="dot" />
-          {dbOk === null ? 'Đang kết nối…' : dbOk ? 'CSDL trực tuyến' : 'Mất kết nối CSDL'}
-        </div>
-      </header>
+    <div className="min-h-dvh bg-slate-50 text-[15px] text-slate-900">
+      <div className="mx-auto w-full max-w-5xl px-3 pb-[calc(2.5rem_+_env(safe-area-inset-bottom))] sm:px-4">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold tracking-tight sm:text-xl">Đếm tế bào nấm men</h1>
+            <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+              Buồng đếm hồng cầu Neubauer · 5 ô lớn × 16 ô nhỏ · biểu đồ log₁₀
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 text-xs text-slate-500">
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${
+                dbOk === null ? 'bg-slate-400' : dbOk ? 'bg-green-600' : 'bg-red-600'
+              }`}
+            />
+            {dbOk === null ? 'Đang kết nối…' : dbOk ? 'CSDL trực tuyến' : 'Mất kết nối CSDL'}
+          </div>
+        </header>
 
-      {error && <div className="banner error">{error}</div>}
+        {error && (
+          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+            {error}
+          </div>
+        )}
 
-      {loading ? (
-        <div className="loading">Đang tải số liệu…</div>
-      ) : (
-        <main className="layout">
-          <section className="card">
-            <h2>
-              Nhập số liệu{' '}
-              {editing && <span className="tag">đang sửa: {fmtDateTime(editing.time)}</span>}
-            </h2>
-            <EntryForm saving={saving} editing={editing} onSave={handleSave} onCancelEdit={() => setEditing(null)} />
-          </section>
+        {loading ? (
+          <div className="p-6 text-center text-sm text-slate-500">Đang tải số liệu…</div>
+        ) : (
+          <main className="grid gap-3 md:grid-cols-[2fr_3fr] md:items-start md:gap-4">
+            <section className={CARD}>
+              <h2 className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold">
+                Nhập số liệu
+                {editing && (
+                  <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-normal text-slate-500">
+                    đang sửa: {fmtDateTime(editing.time)}
+                  </span>
+                )}
+              </h2>
+              <EntryForm
+                saving={saving}
+                editing={editing}
+                onSave={handleSave}
+                onCancelEdit={() => setEditing(null)}
+              />
+            </section>
 
-          <section className="card">
-            <h2>Đường cong sinh trưởng</h2>
-            <GrowthChart items={items} />
-          </section>
+            <section className={`${CARD} min-w-0`}>
+              <h2 className="mb-3 text-sm font-semibold">Đường cong sinh trưởng</h2>
+              <GrowthChart items={items} />
+            </section>
 
-          <section className="card span-all">
-            <h2>Nhật ký số liệu</h2>
-            <DataTable items={items} onEdit={handleEdit} onDelete={handleDelete} />
-          </section>
-        </main>
-      )}
+            <section className={`${CARD} md:col-span-2`}>
+              <h2 className="mb-3 text-sm font-semibold">Nhật ký số liệu</h2>
+              <DataTable items={items} onEdit={handleEdit} onDelete={handleDelete} />
+            </section>
+          </main>
+        )}
 
-      <footer className="app-footer">
-        <p>
-          Công thức: <span className="mono">N (tế bào/mL) = (Σ tế bào 5 ô lớn ÷ 5) × 10⁴ × hệ số pha loãng</span>
-        </p>
-        <p>Buồng đếm Neubauer: ô lớn 1 mm², độ sâu buồng 0,1 mm → thể tích 1 ô lớn = 0,1 µL = 10⁻⁴ mL.</p>
-      </footer>
+        <footer className="mt-6 border-t border-slate-200 pt-3 text-xs text-slate-500">
+          <p className="my-1">
+            Công thức:{' '}
+            <span className="font-mono">
+              N (tế bào/mL) = (Σ tế bào 5 ô lớn ÷ 5) × 10⁴ × hệ số pha loãng
+            </span>
+          </p>
+          <p className="my-1">
+            Buồng đếm Neubauer: ô lớn 1 mm², độ sâu buồng 0,1 mm → thể tích 1 ô lớn = 0,1 µL = 10⁻⁴ mL.
+          </p>
+        </footer>
+      </div>
     </div>
   )
 }

@@ -15,21 +15,21 @@ function ChartTip(props: { active?: boolean; payload?: Array<{ payload: ChartDat
   const { hours, m } = payload[0].payload
   const r = computeResult(m.counts, m.dilutionExp)
   return (
-    <div className="chart-tip">
-      <div className="tip-title">
+    <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs shadow-md">
+      <div className="mb-1 font-semibold">
         {fmtDateTime(m.time)} · +{fmtHours(hours)} h
       </div>
       <div>
-        Σ 5 ô: <b>{fmtInt(r.total)}</b>
+        Σ 5 ô: <b className="font-mono">{fmtInt(r.total)}</b>
       </div>
       <div>
-        Pha loãng: <b>10{sup(m.dilutionExp)}</b>
+        Pha loãng: <b className="font-mono">10{sup(m.dilutionExp)}</b>
       </div>
       <div>
-        N: <b>{fmtSci(r.concentration)} TB/mL</b>
+        N: <b className="font-mono">{fmtSci(r.concentration)} TB/mL</b>
       </div>
       <div>
-        log₁₀(N): <b>{r.log10 === null ? '—' : r.log10.toFixed(2)}</b>
+        log₁₀(N): <b className="font-mono">{r.log10 === null ? '—' : r.log10.toFixed(2)}</b>
       </div>
     </div>
   )
@@ -62,24 +62,21 @@ export default function GrowthChart({ items }: { items: Measurement[] }) {
 
   if (!chart || !chart.domain) {
     return (
-      <div className="empty">
+      <div className="rounded-lg border border-dashed border-slate-200 p-7 text-center text-sm text-slate-500">
         Chưa có số liệu nào có nồng độ lớn hơn 0 — lưu lần đo đầu tiên để bắt đầu biểu đồ.
       </div>
     )
   }
 
   return (
-    <div className="chart-box">
-      <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={chart.data} margin={{ top: 8, right: 18, bottom: 4, left: 2 }}>
+    <div className="w-full min-w-0">
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={chart.data} margin={{ top: 8, right: 14, bottom: 4, left: 0 }}>
           <CartesianGrid stroke="#e6ebf1" strokeDasharray="3 3" />
           <XAxis
             dataKey="hours"
             type="number"
-            domain={[
-              (dataMin: number) => Math.max(0, dataMin - 0.5),
-              (dataMax: number) => dataMax + 0.5,
-            ]}
+            domain={[(dataMin: number) => Math.max(0, dataMin - 0.5), (dataMax: number) => dataMax + 0.5]}
             tickFormatter={(v: number) => fmtHours(v)}
             tick={{ fontSize: 11, fill: '#59636e' }}
             tickLine={false}
@@ -90,7 +87,7 @@ export default function GrowthChart({ items }: { items: Measurement[] }) {
             domain={chart.domain}
             ticks={chart.ticks}
             tickFormatter={(v: number) => `10${sup(Math.round(Math.log10(v)))}`}
-            width={54}
+            width={50}
             tick={{ fontSize: 11, fill: '#59636e' }}
             tickLine={false}
             axisLine={{ stroke: '#d1d9e0' }}
@@ -108,7 +105,7 @@ export default function GrowthChart({ items }: { items: Measurement[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
-      <p className="chart-caption">
+      <p className="mt-2 text-xs text-slate-500">
         Trục Y (log): nồng độ tế bào N (TB/mL). Trục X: giờ kể từ lần đo đầu tiên.
       </p>
     </div>
