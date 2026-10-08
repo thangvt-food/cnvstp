@@ -167,14 +167,25 @@ export default function App() {
     <div className="min-h-dvh bg-slate-50 text-[15px] text-slate-900">
       <div className="mx-auto w-full max-w-5xl px-3 pb-[calc(2.5rem_+_env(safe-area-inset-bottom))] sm:px-4">
         <header className="py-4">
-          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold tracking-tight sm:text-xl">Đếm tế bào nấm men</h1>
-              <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-                Buồng đếm hồng cầu Neubauer · 5 ô × 16 ô nhỏ · biểu đồ log₁₀ / CFU/mL
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-500 text-white shadow-md shadow-blue-600/20">
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <circle cx="12" cy="12" r="8.5" />
+                <circle cx="9.2" cy="10.2" r="1.4" fill="currentColor" stroke="none" />
+                <circle cx="14.2" cy="9.2" r="1" fill="currentColor" stroke="none" />
+                <circle cx="13.2" cy="14.2" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="9.4" cy="14.8" r="0.9" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">
+                Buồng đếm hồng cầu Neubauer
               </p>
+              <h1 className="truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
+                Đếm tế bào nấm men
+              </h1>
             </div>
-            <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm">
+            <span className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm sm:self-center">
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
                   dbOk === null ? 'bg-slate-400' : dbOk ? 'bg-green-600' : 'bg-red-600'
@@ -182,6 +193,16 @@ export default function App() {
               />
               {dbOk === null ? 'Đang kết nối…' : dbOk ? 'Trực tuyến' : 'Mất kết nối'}
             </span>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {['5 ô × 16 ô nhỏ', 'Sâu 0,1 mm · 80 ô nhỏ', 'Biểu đồ log₁₀ / CFU/mL'].map(c => (
+              <span
+                key={c}
+                className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+              >
+                {c}
+              </span>
+            ))}
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <span
