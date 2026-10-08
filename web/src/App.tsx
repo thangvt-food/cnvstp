@@ -166,34 +166,41 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-slate-50 text-[15px] text-slate-900">
       <div className="mx-auto w-full max-w-5xl px-3 pb-[calc(2.5rem_+_env(safe-area-inset-bottom))] sm:px-4">
-        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight sm:text-xl">Đếm tế bào nấm men</h1>
-            <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-              Buồng đếm hồng cầu Neubauer · 5 ô × 16 ô nhỏ · biểu đồ log₁₀ / CFU/mL
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600">
+        <header className="py-4">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold tracking-tight sm:text-xl">Đếm tế bào nấm men</h1>
+              <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+                Buồng đếm hồng cầu Neubauer · 5 ô × 16 ô nhỏ · biểu đồ log₁₀ / CFU/mL
+              </p>
+            </div>
+            <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm">
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
                   dbOk === null ? 'bg-slate-400' : dbOk ? 'bg-green-600' : 'bg-red-600'
                 }`}
               />
-              {dbOk === null ? 'Đang kết nối…' : dbOk ? 'CSDL trực tuyến' : 'Mất kết nối CSDL'}
+              {dbOk === null ? 'Đang kết nối…' : dbOk ? 'Trực tuyến' : 'Mất kết nối'}
             </span>
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <span
-              className="max-w-44 truncate rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-700"
+              className="inline-flex h-8 max-w-[240px] items-center gap-1.5 rounded-full border border-slate-200 bg-white py-0 pl-1 pr-3 text-xs shadow-sm"
               title={user.email ?? ''}
             >
-              {user.displayName || user.email}
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white">
+                {(user.displayName || user.email || '?').trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="truncate font-medium text-slate-700">
+                {user.displayName || user.email}
+              </span>
             </span>
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-600 hover:border-red-400 hover:text-red-600"
+              className="inline-flex h-8 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-500 shadow-sm hover:border-red-300 hover:bg-red-50 hover:text-red-600"
             >
-              Đăng xuất
+              <span aria-hidden>⏻</span> Đăng xuất
             </button>
           </div>
         </header>
