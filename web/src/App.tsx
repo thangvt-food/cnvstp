@@ -143,6 +143,7 @@ export default function App() {
     const goOffline = () => {
       setOnline(false)
       setDbOk(false)
+      setError(null) // tránh banner đỏ gây hoang mang khi chỉ là rớt mạng
     }
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
@@ -358,6 +359,39 @@ export default function App() {
           </div>
         </header>
 
+        {!online && (
+          <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <svg
+              viewBox="0 0 24 24"
+              className="mt-0.5 h-5 w-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <line x1="2" y1="2" x2="22" y2="22" />
+              <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+              <path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
+              <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" />
+              <path d="M16.85 11.25a10 10 0 0 1 2.22 1.68" />
+              <path d="M5 13a10 10 0 0 1 5.24-2.76" />
+              <line x1="12" y1="20" x2="12.01" y2="20" />
+            </svg>
+            <div className="min-w-0">
+              <p className="font-semibold">Bạn đang ngoại tuyến — cứ dùng bình thường nhé.</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed">
+                Nhập, sửa, xóa số liệu vẫn chạy; mọi thay đổi được lưu tạm trên máy và{' '}
+                <b>tự đẩy lên CSDL</b> ngay khi có mạng trở lại — không mất dữ liệu.
+                {pending > 0 && (
+                  <>
+                    {' '}Hiện có <b className="font-mono">{pending}</b> thao tác đang chờ đồng bộ.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
         {pending > 0 && online && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-900">
             <span>
