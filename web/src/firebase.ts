@@ -173,7 +173,7 @@ export function authErrorMessage(code: string): string {
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
     case 'auth/user-not-found':
-      return 'Sai tài khoản hoặc mật khẩu. Tài khoản admin: gõ "admin" + mật khẩu "cnvstp".'
+      return 'Sai tài khoản hoặc mật khẩu — kiểm tra lại email rồi thử lại.'
     case 'auth/popup-closed-by-user':
       return 'Bạn đã đóng cửa sổ Google — hãy thử lại.'
     case 'auth/unauthorized-domain':

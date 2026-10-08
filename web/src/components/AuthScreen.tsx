@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { FirebaseError } from 'firebase/app'
 import { authErrorMessage, signInEmail, signInGoogle, signUpEmail } from '../firebase'
-import { ADMIN_SHORTCUT } from '../firebase-config'
 
 const INPUT =
   'w-full min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30'
@@ -117,14 +116,14 @@ export default function AuthScreen({ onDone }: { onDone: (migrated: number) => v
           )}
           <div>
             <label htmlFor="auth-id" className={LABEL}>
-              Email {mode === 'login' && <span className="font-normal">(admin gõ “{ADMIN_SHORTCUT}”)</span>}
+              Email
             </label>
             <input
               id="auth-id"
               type="text"
               value={loginId}
               onChange={e => setLoginId(e.target.value)}
-              placeholder={mode === 'login' ? `admin hoặc email@...` : 'email@...'}
+              placeholder="email@..."
               autoComplete="username"
               required
               className={INPUT}
@@ -200,11 +199,11 @@ export default function AuthScreen({ onDone }: { onDone: (migrated: number) => v
           Đăng nhập bằng Google
         </button>
 
-        <p className="mt-4 text-xs leading-rel-relaxed text-slate-500">
-          Tài khoản admin nhận toàn bộ số liệu cũ: gõ <b className="font-mono">admin</b> + mật khẩu{' '}
-          <b className="font-mono">cnvstp</b> (tạo 1 lần trong Firebase Console → Authentication → Add
-          user: admin@cnvstp.local). Mỗi user chỉ thấy số liệu của chính mình.
-        </p>
+        <ul className="mt-4 list-disc space-y-1 pl-5 text-xs leading-relaxed text-slate-500">
+          <li>Mỗi tài khoản chỉ xem và lưu số liệu của chính mình.</li>
+          <li>Mật khẩu tối thiểu 6 ký tự — hoặc đăng nhập nhanh bằng Google.</li>
+          <li>Số liệu lưu trực tuyến, đổi máy đăng nhập vẫn thấy đầy đủ.</li>
+        </ul>
       </div>
     </div>
   )
