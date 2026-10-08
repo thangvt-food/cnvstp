@@ -43,6 +43,8 @@ export default function App() {
   const [pending, setPending] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [netMsg, setNetMsg] = useState<string | null>(null)
+  // Popup ngoại tuyến: hiện mỗi khi rớt mạng, user bấm xác nhận mới dùng tiếp
+  const [offlineAck, setOfflineAck] = useState(false)
 
   const refreshPending = useCallback(() => {
     const u = auth.currentUser
@@ -138,6 +140,7 @@ export default function App() {
       setOnline(true)
       setDbOk(true)
       setNetMsg(null)
+      setOfflineAck(false) // lần rớt mạng sau lại popup lại từ đầu
       void syncNow()
     }
     const goOffline = () => {
@@ -152,6 +155,17 @@ export default function App() {
       window.removeEventListener('offline', goOffline)
     }
   }, [syncNow])
+
+  // Khóa cuộn nền khi popup ngoại tuyến đang mở (bắt xác nhận, không bấm ra ngoài để tắt)
+  const showOfflinePopup = !online && !offlineAck
+  useEffect(() => {
+    if (!showOfflinePopup) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [showOfflinePopup])
 
   /** Nút merge thủ công cho admin (dự phòng khi auto-merge bị chặn mạng/rules). */
   const handleManualMerge = async () => {
@@ -484,6 +498,57 @@ export default function App() {
           </p>
         </footer>
       </div>
+
+      {/* Popup bắt xác nhận khi ngoại tuyến */}
+      {showOfflinePopup && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="offline-popup-title"
+            className="w-full max-w-sm rounded-2xl border border-amber-200 bg-white p-5 shadow-xl"
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <line x1="2" y1="2" x2="22" y2="22" />
+                <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+                <path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
+                <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" />
+                <path d="M16.85 11.25a10 10 0 0 1 2.22 1.68" />
+                <path d="M5 13a10 10 0 0 1 5.24-2.76" />
+                <line x1="12" y1="20" x2="12.01" y2="20" />
+              </svg>
+            </div>
+            <h2 id="offline-popup-title" className="text-center text-base font-bold text-slate-900">
+              Bạn đang ngoại tuyến
+            </h2>
+            <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
+              Vẫn nhập, sửa, xóa số liệu bình thường — mọi thay đổi lưu tạm trên máy và{' '}
+              <b>tự đẩy lên CSDL</b> ngay khi có mạng trở lại, không mất dữ liệu.
+              {pending > 0 && (
+                <>
+                  {' '}Hiện có <b className="font-mono">{pending}</b> thao tác đang chờ đồng bộ.
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setOfflineAck(true)}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Đã hiểu, tiếp tục dùng offline
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
