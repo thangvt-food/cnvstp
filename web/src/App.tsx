@@ -3,20 +3,28 @@ import { onAuthStateChanged, type User } from 'firebase/auth'
 import type { Measurement, MeasurementInput } from './types'
 import {
   addMeasurement,
+  countPending,
   deleteMeasurement,
+  dropAddOp,
+  enqueueOp,
   ensureMigrated,
+  flushOutbox,
   listMeasurements,
+  loadOutbox,
   signOut,
+  updateAddOpData,
   updateMeasurement,
 } from './firebase'
 import { auth, isAdminEmail } from './firebase-config'
-import { fmtDateTime } from './calc'
+import { fmtDateTime, parseLocal } from './calc'
 import EntryForm from './components/EntryForm'
 import GrowthChart from './components/GrowthChart'
 import DataTable from './components/DataTable'
 import AuthScreen from './components/AuthScreen'
 
 const CARD = 'rounded-xl border border-slate-200 bg-white p-4'
+
+const byTimeDesc = (a: Measurement, b: Measurement) => parseLocal(b.time) - parseLocal(a.time)
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
@@ -29,24 +37,72 @@ export default function App() {
   const [dbOk, setDbOk] = useState<boolean | null>(null)
   const [mergeMsg, setMergeMsg] = useState<string | null>(null)
   const [merging, setMerging] = useState(false)
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  )
+  const [pending, setPending] = useState(0)
+  const [syncing, setSyncing] = useState(false)
+  const [netMsg, setNetMsg] = useState<string | null>(null)
+
+  const refreshPending = useCallback(() => {
+    const u = auth.currentUser
+    setPending(u ? countPending(u.uid) : 0)
+  }, [])
 
   const reload = useCallback(async () => {
-    if (!auth.currentUser) {
+    const u = auth.currentUser
+    if (!u) {
       setItems([])
       setLoading(false)
       return
     }
     try {
-      const data = await listMeasurements(auth.currentUser.uid)
+      const data = await listMeasurements(u.uid)
       setItems(data)
       setDbOk(true)
+      refreshPending()
     } catch {
       setDbOk(false)
-      setError('Không tải được số liệu từ cơ sở dữ liệu — kiểm tra kết nối mạng rồi tải lại trang.')
+      if (!navigator.onLine) {
+        // Ngoại tuyến: hiện các bản ghi đang chờ đồng bộ để user vẫn thấy việc mình làm
+        const queued = loadOutbox()
+          .filter(o => o.uid === u.uid && o.type === 'add' && o.data)
+          .map(o => ({ ...(o.data as MeasurementInput), id: o.clientTempId ?? o.id }))
+          .sort(byTimeDesc)
+        setItems(queued)
+        setError(null)
+        setNetMsg('Đang ngoại tuyến — số liệu mới lưu tạm trên máy, sẽ tự đẩy lên CSDL khi có mạng.')
+      } else {
+        setError('Không tải được số liệu từ cơ sở dữ liệu — kiểm tra kết nối mạng rồi tải lại trang.')
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [refreshPending])
+
+  /** Đẩy hàng đợi offline lên CSDL rồi tải lại. */
+  const syncNow = useCallback(async () => {
+    const u = auth.currentUser
+    if (!u || !navigator.onLine) return
+    if (countPending(u.uid) === 0) {
+      setPending(0)
+      return
+    }
+    setSyncing(true)
+    try {
+      const { done, failed } = await flushOutbox(u.uid)
+      setPending(countPending(u.uid))
+      if (done > 0) {
+        setNetMsg(`Đã đồng bộ ${done} thao tác offline lên CSDL.`)
+        await reload()
+      }
+      if (failed > 0) {
+        setNetMsg('Còn thao tác chưa đồng bộ được — sẽ tự thử lại khi mạng ổn định.')
+      }
+    } finally {
+      setSyncing(false)
+    }
+  }, [reload])
 
   useEffect(() => {
     // Merge TRƯỚC rồi mới tải — đảm bảo admin thấy đủ dữ liệu cũ ngay lần đầu,
@@ -58,6 +114,8 @@ export default function App() {
         setItems([])
         setEditing(null)
         setMergeMsg(null)
+        setNetMsg(null)
+        setPending(0)
         setLoading(false)
         return
       }
@@ -69,9 +127,30 @@ export default function App() {
         /* merge lỗi thì vẫn tải dữ liệu user bình thường */
       }
       await reload()
+      await syncNow()
     })
     return unsub
-  }, [reload])
+  }, [reload, syncNow])
+
+  // Theo dõi mạng thật: offline → pill "Ngoại tuyến", online lại → tự đồng bộ
+  useEffect(() => {
+    const goOnline = () => {
+      setOnline(true)
+      setDbOk(true)
+      setNetMsg(null)
+      void syncNow()
+    }
+    const goOffline = () => {
+      setOnline(false)
+      setDbOk(false)
+    }
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [syncNow])
 
   /** Nút merge thủ công cho admin (dự phòng khi auto-merge bị chặn mạng/rules). */
   const handleManualMerge = async () => {
@@ -94,11 +173,39 @@ export default function App() {
     }
   }
 
+  /** Lưu tạm khi offline (hoặc khi ghi online thất bại): cập nhật UI ngay + xếp hàng đợi. */
+  const saveOffline = (uid: string, input: MeasurementInput) => {
+    if (editing) {
+      if (editing.id.startsWith('local-')) {
+        updateAddOpData(editing.id, input)
+        setItems(prev =>
+          prev.map(x => (x.id === editing.id ? { ...input, id: editing.id } : x)).sort(byTimeDesc),
+        )
+      } else {
+        enqueueOp({ uid, type: 'update', measurementId: editing.id, data: input })
+        setItems(prev =>
+          prev.map(x => (x.id === editing.id ? { ...input, id: editing.id } : x)).sort(byTimeDesc),
+        )
+      }
+      setEditing(null)
+    } else {
+      const tempId = `local-${Date.now()}`
+      enqueueOp({ uid, type: 'add', clientTempId: tempId, data: input })
+      setItems(prev => [...prev, { ...input, id: tempId }].sort(byTimeDesc))
+    }
+    refreshPending()
+    setNetMsg('Đã lưu tạm (ngoại tuyến) — sẽ tự đẩy lên CSDL khi có mạng trở lại.')
+  }
+
   const handleSave = async (input: MeasurementInput) => {
     const uid = auth.currentUser?.uid
     if (!uid) {
       setError('Phiên đăng nhập hết hạn — hãy đăng nhập lại.')
       throw new Error('no-auth')
+    }
+    if (!navigator.onLine) {
+      saveOffline(uid, input)
+      return
     }
     setSaving(true)
     setError(null)
@@ -111,9 +218,9 @@ export default function App() {
       }
       await reload()
     } catch {
+      // Rớt mạng giữa chừng (trình duyệt vẫn báo online): giữ số liệu bằng hàng đợi
       setDbOk(false)
-      setError('Lưu không thành công — kiểm tra kết nối mạng rồi bấm lưu lại. Số liệu vẫn còn nguyên trong form.')
-      throw new Error('save-failed')
+      saveOffline(uid, input)
     } finally {
       setSaving(false)
     }
@@ -124,12 +231,24 @@ export default function App() {
     if (!uid) return
     if (!window.confirm(`Xóa lần đo lúc ${fmtDateTime(m.time)}?`)) return
     setError(null)
+    if (!navigator.onLine) {
+      if (m.id.startsWith('local-')) dropAddOp(m.id)
+      else enqueueOp({ uid, type: 'delete', measurementId: m.id })
+      setItems(prev => prev.filter(x => x.id !== m.id))
+      refreshPending()
+      setNetMsg('Đã xóa tạm (ngoại tuyến) — sẽ đồng bộ khi có mạng trở lại.')
+      return
+    }
     try {
       await deleteMeasurement(uid, m.id)
       await reload()
     } catch {
       setDbOk(false)
-      setError('Xóa không thành công — kiểm tra kết nối mạng rồi thử lại.')
+      if (m.id.startsWith('local-')) dropAddOp(m.id)
+      else enqueueOp({ uid, type: 'delete', measurementId: m.id })
+      setItems(prev => prev.filter(x => x.id !== m.id))
+      refreshPending()
+      setNetMsg('Xóa chưa tới được CSDL — đã xếp hàng đợi, sẽ đồng bộ khi mạng ổn định.')
     }
   }
 
@@ -144,6 +263,8 @@ export default function App() {
     setItems([])
     setEditing(null)
     setMergeMsg(null)
+    setNetMsg(null)
+    setPending(0)
     setDbOk(null)
   }
 
@@ -185,13 +306,24 @@ export default function App() {
                 Đếm tế bào nấm men
               </h1>
             </div>
-            <span className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm sm:self-center">
+            <span
+              className={`inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-full border px-3 text-xs font-medium shadow-sm sm:self-center ${
+                !online
+                  ? 'border-amber-300 bg-amber-50 text-amber-800'
+                  : 'border-slate-200 bg-white text-slate-600'
+              }`}
+              title={
+                !online
+                  ? 'Không có mạng — số liệu lưu tạm trên máy, tự đồng bộ khi online'
+                  : 'Trạng thái kết nối CSDL'
+              }
+            >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
-                  dbOk === null ? 'bg-slate-400' : dbOk ? 'bg-green-600' : 'bg-red-600'
+                  !online ? 'bg-amber-500' : dbOk === null ? 'bg-slate-400' : dbOk ? 'bg-green-600' : 'bg-red-600'
                 }`}
               />
-              {dbOk === null ? 'Đang kết nối…' : dbOk ? 'Trực tuyến' : 'Mất kết nối'}
+              {!online ? 'Ngoại tuyến' : dbOk === null ? 'Đang kết nối…' : dbOk ? 'Trực tuyến' : 'Mất kết nối'}
             </span>
           </div>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -226,6 +358,21 @@ export default function App() {
           </div>
         </header>
 
+        {pending > 0 && online && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-900">
+            <span>
+              Còn <b className="font-mono">{pending}</b> thao tác offline chưa đồng bộ.
+            </span>
+            <button
+              type="button"
+              onClick={() => void syncNow()}
+              disabled={syncing}
+              className="inline-flex min-h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              {syncing ? 'Đang đồng bộ…' : 'Đồng bộ ngay'}
+            </button>
+          </div>
+        )}
         {isAdminEmail(user.email) && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600">
             <span>
@@ -239,6 +386,11 @@ export default function App() {
             >
               {merging ? 'Đang merge…' : 'Merge dữ liệu cũ ngay'}
             </button>
+          </div>
+        )}
+        {netMsg && (
+          <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-900">
+            {netMsg}
           </div>
         )}
         {mergeMsg && (

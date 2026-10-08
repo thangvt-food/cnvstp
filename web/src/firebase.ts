@@ -186,3 +186,99 @@ export function authErrorMessage(code: string): string {
       return `Đăng nhập thất bại (${code}).`
   }
 }
+
+// ---------- Outbox offline: hàng đợi localStorage, tự push khi online ----------
+
+export interface OutboxOp {
+  id: string
+  uid: string
+  type: 'add' | 'update' | 'delete'
+  /** id tạm phía client cho bản ghi thêm lúc offline (dạng "local-...") */
+  clientTempId?: string
+  measurementId?: string
+  data?: MeasurementInput
+  createdAt: string
+}
+
+const OUTBOX_KEY = 'cnvstp-outbox-v1'
+
+export function loadOutbox(): OutboxOp[] {
+  try {
+    const raw = localStorage.getItem(OUTBOX_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw) as OutboxOp[]
+    return Array.isArray(arr) ? arr : []
+  } catch {
+    return []
+  }
+}
+
+function persistOutbox(ops: OutboxOp[]): void {
+  try {
+    localStorage.setItem(OUTBOX_KEY, JSON.stringify(ops))
+  } catch {
+    /* bộ nhớ đầy thì bỏ qua — dữ liệu server vẫn nguyên */
+  }
+}
+
+export function enqueueOp(op: Omit<OutboxOp, 'id' | 'createdAt'>): OutboxOp {
+  const full: OutboxOp = {
+    ...op,
+    id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+  }
+  persistOutbox([...loadOutbox(), full])
+  return full
+}
+
+export function dropOp(id: string): void {
+  persistOutbox(loadOutbox().filter(o => o.id !== id))
+}
+
+/** Sửa data của op "add" đang chờ (user sửa bản ghi vừa thêm lúc offline). */
+export function updateAddOpData(clientTempId: string, data: MeasurementInput): boolean {
+  const ops = loadOutbox()
+  const op = ops.find(o => o.type === 'add' && o.clientTempId === clientTempId)
+  if (!op) return false
+  op.data = data
+  persistOutbox(ops)
+  return true
+}
+
+/** Xóa op "add" đang chờ (user xóa bản ghi vừa thêm lúc offline). */
+export function dropAddOp(clientTempId: string): boolean {
+  const ops = loadOutbox()
+  if (!ops.some(o => o.type === 'add' && o.clientTempId === clientTempId)) return false
+  persistOutbox(ops.filter(o => !(o.type === 'add' && o.clientTempId === clientTempId)))
+  return true
+}
+
+export function countPending(uid: string): number {
+  return loadOutbox().filter(o => o.uid === uid).length
+}
+
+/**
+ * Đẩy toàn bộ thao tác đang chờ của 1 user lên CSDL.
+ * Dừng ở op đầu tiên thất bại (thường là vẫn chưa có mạng thật).
+ */
+export async function flushOutbox(uid: string): Promise<{ done: number; failed: number }> {
+  const ops = loadOutbox().filter(o => o.uid === uid)
+  let done = 0
+  let failed = 0
+  for (const op of ops) {
+    try {
+      if (op.type === 'add' && op.data) await addMeasurement(uid, op.data)
+      else if (op.type === 'update' && op.measurementId && op.data) {
+        await updateMeasurement(uid, op.measurementId, op.data)
+      } else if (op.type === 'delete' && op.measurementId) {
+        await deleteMeasurement(uid, op.measurementId)
+      } else throw new Error('bad-op')
+      dropOp(op.id)
+      done += 1
+    } catch {
+      failed += 1
+      break
+    }
+  }
+  return { done, failed }
+}
