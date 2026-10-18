@@ -20,5 +20,8 @@ dist/
 /package.json
 /package-lock.json
 
+# Ghi chép domain/DNS cá nhân (PA Vietnam, Firebase, Vercel) — không đưa lên repo
+/web/domain.md
+
 # Command Code internals
 .commandcode/
