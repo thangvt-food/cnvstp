@@ -241,6 +241,51 @@ export default function App() {
     }
   }
 
+  /** Nhập hàng loạt từ file CSV (đã preview + validate ở DataTable). */
+  const handleImport = async (inputs: MeasurementInput[]) => {
+    const uid = auth.currentUser?.uid
+    if (!uid) {
+      setError('Phiên đăng nhập hết hạn — hãy đăng nhập lại.')
+      throw new Error('no-auth')
+    }
+    if (inputs.length === 0) return
+    if (inputs.length > 500) {
+      setError('File quá lớn — mỗi lần chỉ nhập tối đa 500 dòng.')
+      throw new Error('too-many')
+    }
+    setError(null)
+    // Ngoại tuyến: xếp hàng đợi, hiện ngay trên UI
+    if (!navigator.onLine) {
+      const now = Date.now()
+      inputs.forEach((data, i) => {
+        enqueueOp({ uid, type: 'add', clientTempId: `local-imp-${now}-${i}`, data })
+      })
+      setItems(prev =>
+        [...prev, ...inputs.map((data, i) => ({ ...data, id: `local-imp-${now}-${i}` }))].sort(
+          byTimeDesc,
+        ),
+      )
+      refreshPending()
+      setNetMsg(
+        `Đã lưu tạm ${inputs.length} dòng (ngoại tuyến) — sẽ tự đẩy lên CSDL khi có mạng trở lại.`,
+      )
+      return
+    }
+    setSaving(true)
+    try {
+      for (const data of inputs) {
+        await addMeasurement(uid, data)
+      }
+      await reload()
+      setNetMsg(`Đã nhập ${inputs.length} dòng từ file lên CSDL.`)
+    } catch {
+      setDbOk(false)
+      throw new Error('import-failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleDelete = async (m: Measurement) => {
     const uid = auth.currentUser?.uid
     if (!uid) return
@@ -480,7 +525,7 @@ export default function App() {
 
             <section className={`${CARD} md:col-span-2`}>
               <h2 className="mb-3 text-sm font-semibold">Nhật ký số liệu</h2>
-              <DataTable items={items} onEdit={handleEdit} onDelete={handleDelete} />
+              <DataTable items={items} onEdit={handleEdit} onDelete={handleDelete} onImport={handleImport} />
             </section>
           </main>
         )}

@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
-import type { Measurement } from '../types'
+import { useMemo, useRef, useState } from 'react'
+import type { Measurement, MeasurementInput } from '../types'
 import { computeResult, fmtDateTime, fmtHours, fmtInt, fmtSci, parseLocal, sup, trimZeros } from '../calc'
+import { buildExportCsv, parseImportText } from '../csv'
+import ImportDialog from './ImportDialog'
 
 const TH =
   'whitespace-nowrap border-b border-slate-200 bg-slate-50 px-2.5 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500'
@@ -20,6 +22,7 @@ interface Props {
   items: Measurement[]
   onEdit: (m: Measurement) => void
   onDelete: (m: Measurement) => void
+  onImport: (inputs: MeasurementInput[]) => Promise<void>
 }
 
 interface DayGroup {
@@ -51,7 +54,16 @@ function fmtD(local: string): string {
   return fmtDateTime(local).split(' ')[0] ?? local
 }
 
-export default function DataTable({ items, onEdit, onDelete }: Props) {
+export default function DataTable({ items, onEdit, onDelete, onImport }: Props) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<{
+    fileName: string
+    inputs: MeasurementInput[]
+    errors: string[]
+    totalRows: number
+  } | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState<string | null>(null)
   const t0 = useMemo(
     () => (items.length > 0 ? Math.min(...items.map(m => parseLocal(m.time))) : 0),
     [items],
@@ -76,37 +88,14 @@ export default function DataTable({ items, onEdit, onDelete }: Props) {
   }, [sorted])
 
   const exportCsv = () => {
-    const head = [
-      'Thoi_gian (ISO)',
-      'Gio_tu_lan_dau (h)',
-      'O1',
-      'O2',
-      'O3',
-      'O4',
-      'O5',
-      'He_so_pha_loang (10^n)',
-      'Tong_5_o',
-      'TB_moi_o',
-      'Nong_do_N (TB/mL)',
-      'log10_N',
-    ]
-    const rows = sorted.map(m => {
-      const r = computeResult(m.counts, m.dilutionExp)
-      const h = (parseLocal(m.time) - t0) / 3600000
-      return [
-        m.time,
-        h.toFixed(3),
-        ...m.counts,
-        m.dilutionExp,
-        r.total,
-        r.avg.toFixed(2),
-        r.concentration.toExponential(3),
-        r.log10 === null ? '' : r.log10.toFixed(3),
-      ]
-        .map(v => String(v))
-        .join(';')
-    })
-    const csv = '﻿' + [head.join(';'), ...rows].join('\r\n')
+    const csv = buildExportCsv(
+      sorted.map(m => ({
+        time: m.time,
+        counts: m.counts,
+        dilutionExp: m.dilutionExp,
+        hours: (parseLocal(m.time) - t0) / 3600000,
+      })),
+    )
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
@@ -115,37 +104,115 @@ export default function DataTable({ items, onEdit, onDelete }: Props) {
     URL.revokeObjectURL(url)
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-slate-200 p-7 text-center text-sm text-slate-500">
-        Chưa có lần đo nào được lưu.
-      </div>
-    )
+  const handleFile = async (f: File | undefined) => {
+    if (!f) return
+    setImportMsg(null)
+    try {
+      const text = await f.text()
+      const { inputs, errors, totalRows } = parseImportText(text)
+      if (totalRows === 0 && errors.length > 0) {
+        setImportMsg(errors[0])
+        return
+      }
+      setPreview({ fileName: f.name, inputs, errors, totalRows })
+    } catch {
+      setImportMsg('Không đọc được file — hãy thử file .csv khác.')
+    }
   }
 
-  const newest = fmtD(sorted[0].time)
-  const oldest = fmtD(sorted[sorted.length - 1].time)
+  const handleConfirmImport = async () => {
+    if (!preview || preview.inputs.length === 0) return
+    setImporting(true)
+    try {
+      await onImport(preview.inputs)
+      setPreview(null)
+      setImportMsg(`Đã nhập ${preview.inputs.length} dòng từ file.`)
+    } catch {
+      setImportMsg('Nhập thất bại — kiểm tra mạng rồi thử lại.')
+    } finally {
+      setImporting(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const newest = sorted.length > 0 ? fmtD(sorted[0].time) : ''
+  const oldest = sorted.length > 0 ? fmtD(sorted[sorted.length - 1].time) : ''
+  const isEmpty = items.length === 0
 
   return (
     <div>
-      {/* Header gọn: tổng quan bên trái, Xuất CSV bên phải */}
+      {/* Header gọn: tổng quan bên trái, Nhập + Xuất bên phải */}
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs text-slate-500">
-          Tổng <b className="font-mono text-slate-900">{items.length}</b> lần đo
-          <span className="hidden sm:inline">
-            {' '}
-            · {oldest} → {newest}
-          </span>
+          {isEmpty ? (
+            <>Chưa có lần đo nào được lưu.</>
+          ) : (
+            <>
+              Tổng <b className="font-mono text-slate-900">{items.length}</b> lần đo
+              <span className="hidden sm:inline">
+                {' '}
+                · {oldest} → {newest}
+              </span>
+            </>
+          )}
         </p>
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-        >
-          Xuất CSV
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,.txt,text/csv,text/plain"
+            className="hidden"
+            aria-label="Chọn file CSV để nhập"
+            onChange={e => {
+              void handleFile(e.target.files?.[0])
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Nhập CSV
+          </button>
+          {!isEmpty && (
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+            >
+              Xuất CSV
+            </button>
+          )}
+        </div>
       </div>
-
+      {importMsg && (
+        <div className="mb-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          {importMsg}
+        </div>
+      )}
+      {preview && (
+        <ImportDialog
+          fileName={preview.fileName}
+          inputs={preview.inputs}
+          errors={preview.errors}
+          totalRows={preview.totalRows}
+          importing={importing}
+          onConfirm={() => void handleConfirmImport()}
+          onClose={() => {
+            if (!importing) {
+              setPreview(null)
+              if (fileRef.current) fileRef.current.value = ''
+            }
+          }}
+        />
+      )}
+      {isEmpty && !preview ? (
+        <div className="rounded-lg border border-dashed border-slate-200 p-7 text-center text-sm text-slate-500">
+          Chưa có lần đo nào được lưu — bấm <b>Nhập CSV</b> để tải file xuất ra trước đây, hoặc nhập tay ở
+          biểu mẫu bên trên.
+        </div>
+      ) : (
+        <>
       {/* Desktop: bảng + vạch phân ngày */}
       <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
         <table className="w-full min-w-[820px] border-collapse text-[13px]">
@@ -206,8 +273,12 @@ export default function DataTable({ items, onEdit, onDelete }: Props) {
       </ul>
 
       <p className="mt-2 text-xs text-slate-500">
-        Cột "Giờ": giờ kể từ lần đo đầu tiên (hệ thống tự tính từ thời gian bạn nhập).
+        Cột "Giờ": giờ kể từ lần đo đầu tiên (hệ thống tự tính từ thời gian bạn nhập). File nhập:
+        CSV ngăn cách bằng <b className="font-mono">;</b> (đúng định dạng file Xuất ra) — các cột tính toán
+        (Σ, N, log) sẽ tự tính lại, cột thừa tự bỏ qua.
       </p>
+        </>
+      )}
     </div>
   )
 }
