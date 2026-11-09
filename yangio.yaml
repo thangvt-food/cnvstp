@@ -1,0 +1,25 @@
+slug: cnvstp
+name: Đếm tế bào nấm men
+tagline: Ghi số liệu đếm Neubauer và vẽ đường cong sinh trưởng
+url: https://cnvstp.yangio.id.vn/
+status: live
+visibility: public
+description: Web app ghi số liệu đếm tế bào nấm men bằng buồng đếm Neubauer, tự tính nồng độ và vẽ đường cong log10; xuất CSV.
+tags:
+  - sinh-học
+  - thực-hành
+  - biểu-đồ
+category: learning
+tech:
+  - react
+  - vite
+  - typescript
+  - recharts
+hosting: github-pages
+updated: '2026-10-18'
+version: 1.0.0
+icon: 🔬
+auth: none
+links:
+  repo: https://github.com/thangvt-food/cnvstp
+notes: Deploy GitHub Pages, domain cnvstp.yangio.id.vn; source nằm trong web/.
